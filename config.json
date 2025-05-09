@@ -3,12 +3,12 @@
     {
       "username": "admin",
       "apiKey": "12345-admin-key",
-      "balance": 1001
+      "balance": 1000
     },
     {
       "username": "user1",
       "apiKey": "54321-user-key",
-      "balance": 499
+      "balance": 500
     }
   ]
 }
