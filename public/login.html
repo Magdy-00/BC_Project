@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - Crypto App</title>
+    <style>
+        body {
+            font-family: Arial;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .login-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .file-upload {
+            margin: 20px 0;
+        }
+        .file-upload-label {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #f8f9fa;
+            border: 2px dashed #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        .file-upload input[type="file"] {
+            display: none;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+        .selected-file {
+            color: #28a745;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h2>Login to Cryptocurrency App</h2>
+        <div class="file-upload">
+            <label class="file-upload-label">
+                <input type="file" id="configFile" accept=".json" onchange="handleFileSelect(event)">
+                Choose Config File
+            </label>
+            <div id="fileName" class="selected-file"></div>
+        </div>
+        <button onclick="login()" id="loginBtn" disabled>Login</button>
+        <div id="error" class="error"></div>
+    </div>
+
+    <script>
+        let selectedFile = null;
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                selectedFile = file;
+                document.getElementById('fileName').textContent = file.name;
+                document.getElementById('loginBtn').disabled = false;
+            }
+        }
+
+        async function login() {
+            if (!selectedFile) {
+                document.getElementById('error').textContent = 'Please select a config file';
+                return;
+            }
+
+            try {
+                const fileContent = await selectedFile.text();
+                const config = JSON.parse(fileContent);
+
+                if (!config.username || !config.apiKey) {
+                    throw new Error('Invalid config file format');
+                }
+
+                const response = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: config.username,
+                        apiKey: config.apiKey
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    localStorage.setItem('authToken', data.token);
+                    window.location.href = '/index.html';
+                } else {
+                    document.getElementById('error').textContent = data.error;
+                }
+            } catch (err) {
+                document.getElementById('error').textContent = 
+                    err.message === 'Invalid config file format' 
+                        ? 'Invalid config file format. File must contain username and apiKey.' 
+                        : 'Login failed';
+            }
+        }
+    </script>
+</body>
+</html>

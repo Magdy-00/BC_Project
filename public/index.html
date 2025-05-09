@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cryptocurrency App</title>
+    <style>
+        body {
+            font-family: Arial;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        input {
+            padding: 8px;
+            margin: 5px 0;
+            width: 200px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+        .success {
+            color: green;
+            margin-top: 10px;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Cryptocurrency App</h1>
+            <button onclick="logout()">Logout</button>
+        </div>
+
+        <div class="card">
+            <h2>Your Balance</h2>
+            <div class="form-group">
+                <button onclick="checkBalance()">Check Balance</button>
+            </div>
+            <div id="balanceResult"></div>
+        </div>
+
+        <div class="card">
+            <h2>Send Transaction</h2>
+            <div class="form-group">
+                <input type="text" id="toUser" placeholder="Recipient username">
+                <input type="number" id="amount" placeholder="Amount">
+                <button onclick="sendTransaction()">Send</button>
+            </div>
+            <div id="transactionResult"></div>
+        </div>
+
+        <div class="card">
+            <h2>Pending Transactions</h2>
+            <div class="form-group">
+                <button onclick="viewPendingTransactions()">View Pending</button>
+            </div>
+            <pre id="pendingTransactions"></pre>
+        </div>
+
+        <div class="card">
+            <h2>Mine Block</h2>
+            <div class="form-group">
+                <button onclick="mineBlock()">Mine New Block</button>
+            </div>
+            <div id="miningResult"></div>
+        </div>
+
+        <div class="card">
+            <h2>Blockchain</h2>
+            <div class="form-group">
+                <button onclick="viewBlockchain()">View Blockchain</button>
+            </div>
+            <pre id="blockchainData"></pre>
+        </div>
+    </div>
+
+    <script>
+        // WebSocket connection
+        const ws = new WebSocket('ws://localhost:6001');
+        
+        ws.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            if (data.type === 'NEW_BLOCK') {
+                viewBlockchain();
+                checkBalance();
+            }
+        };
+
+        if (!localStorage.getItem('authToken')) {
+            window.location.href = '/login.html';
+        }
+
+        function getAuthHeader() {
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            };
+        }
+
+        async function checkBalance() {
+            try {
+                const token = localStorage.getItem('authToken');
+                const tokenData = JSON.parse(atob(token.split('.')[1]));
+                const username = tokenData.username;
+                
+                const response = await fetch(`/balance/${username}`, {
+                    headers: getAuthHeader()
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('balanceResult').textContent = 
+                        `Balance: ${data.balance} coins`;
+                } else {
+                    document.getElementById('balanceResult').textContent = 
+                        data.error || 'Error checking balance';
+                }
+            } catch (err) {
+                document.getElementById('balanceResult').textContent = 
+                    'Error checking balance';
+            }
+        }
+
+        async function sendTransaction() {
+            try {
+                const toUser = document.getElementById('toUser').value;
+                const amount = Number(document.getElementById('amount').value);
+
+                const response = await fetch('/transaction', {
+                    method: 'POST',
+                    headers: getAuthHeader(),
+                    body: JSON.stringify({
+                        to: toUser,
+                        amount: amount
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('transactionResult').className = 'success';
+                    document.getElementById('transactionResult').textContent = 
+                        `${data.message}. Your new balance: ${data.newBalance} coins`;
+                    document.getElementById('toUser').value = '';
+                    document.getElementById('amount').value = '';
+                    viewPendingTransactions();
+                } else {
+                    document.getElementById('transactionResult').className = 'error';
+                    document.getElementById('transactionResult').textContent = 
+                        data.error || 'Transaction failed';
+                }
+            } catch (err) {
+                document.getElementById('transactionResult').className = 'error';
+                document.getElementById('transactionResult').textContent = 
+                    'Transaction failed';
+            }
+        }
+
+        async function viewPendingTransactions() {
+            try {
+                const response = await fetch('/pending-transactions', {
+                    headers: getAuthHeader()
+                });
+                const data = await response.json();
+                
+                document.getElementById('pendingTransactions').textContent = 
+                    JSON.stringify(data.transactions, null, 2);
+            } catch (err) {
+                document.getElementById('pendingTransactions').textContent = 
+                    'Error loading pending transactions';
+            }
+        }
+
+        async function mineBlock() {
+            try {
+                const response = await fetch('/mine', {
+                    method: 'POST',
+                    headers: getAuthHeader()
+                });
+                
+                const data = await response.json();
+                document.getElementById('miningResult').textContent = data.message;
+                
+                await checkBalance();
+                await viewPendingTransactions();
+                await viewBlockchain();
+            } catch (err) {
+                document.getElementById('miningResult').textContent = 
+                    'Mining failed';
+            }
+        }
+
+        async function viewBlockchain() {
+            try {
+                const response = await fetch('/blockchain', {
+                    headers: getAuthHeader()
+                });
+                const data = await response.json();
+                
+                document.getElementById('blockchainData').textContent = 
+                    JSON.stringify(data.chain, null, 2);
+            } catch (err) {
+                document.getElementById('blockchainData').textContent = 
+                    'Error loading blockchain';
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('authToken');
+            window.location.href = '/login.html';
+        }
+    </script>
+</body>
+</html>
