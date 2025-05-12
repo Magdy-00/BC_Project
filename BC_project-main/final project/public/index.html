@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cryptocurrency App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-6">
+    <div class="max-w-6xl mx-auto">
+        <!-- Banner -->
+        <div class="mb-6">
+            <img src="banner.jpg"
+     alt="Crypto Banner"
+     class="w-full h-60 object-cover rounded-lg mb-6 shadow-lg">
+      
+        
+            <h1 class="text-4xl font-bold text-center text-gray-800">Welcome to the Cryptocurrency App</h1>
+            <p class="text-center text-gray-600 mt-2">Manage your cryptocurrency transactions and view your balance.</p>
+        </div>
+
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">Cryptocurrency App</h1>
+            <button onclick="logout()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded">Logout</button>
+        </div>
+
+        <!-- Balance Card -->
+        <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+            <div class="flex items-center mb-4">
+                <img src="https://cdn-icons-png.flaticon.com/512/4290/4290854.png" class="w-6 h-6 mr-2" alt="Balance">
+                <h2 class="text-xl font-semibold text-gray-700">Your Balance</h2>
+            </div>
+            <button onclick="checkBalance()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Check Balance</button>
+            <div id="balanceResult" class="mt-4 text-gray-700"></div>
+        </div>
+
+        <!-- Send Transaction Card -->
+        <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+            <div class="flex items-center mb-4">
+                <img src="https://cdn-icons-png.flaticon.com/512/483/483947.png" class="w-6 h-6 mr-2" alt="Send">
+                <h2 class="text-xl font-semibold text-gray-700">Send Transaction</h2>
+            </div>
+            <div class="mb-4 flex flex-col md:flex-row gap-4">
+                <input type="text" id="toUser" placeholder="Recipient username" class="px-4 py-2 border rounded w-full">
+                <input type="number" id="amount" placeholder="Amount" class="px-4 py-2 border rounded w-full">
+                <button onclick="sendTransaction()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">Send</button>
+            </div>
+            <div id="transactionResult" class="text-sm"></div>
+        </div>
+
+        <!-- Pending Transactions Card -->
+        <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+            <div class="flex items-center mb-4">
+                <img src="https://cdn-icons-png.flaticon.com/512/5610/5610944.png" class="w-6 h-6 mr-2" alt="Pending">
+                <h2 class="text-xl font-semibold text-gray-700">Pending Transactions</h2>
+            </div>
+            <button onclick="viewPendingTransactions()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded">View Pending</button>
+            <pre id="pendingTransactions" class="bg-gray-100 mt-4 p-4 rounded text-sm overflow-x-auto"></pre>
+        </div>
+
+        <!-- Mine Block Card -->
+        <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+            <div class="flex items-center mb-4">
+                <img src="https://cdn-icons-png.flaticon.com/512/3125/3125713.png" class="w-6 h-6 mr-2" alt="Mine">
+                <h2 class="text-xl font-semibold text-gray-700">Mine Block</h2>
+            </div>
+            <button onclick="mineBlock()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded">Mine New Block</button>
+            <div id="miningResult" class="mt-4 text-gray-700"></div>
+        </div>
+
+        <!-- Blockchain Card -->
+        <div class="bg-white p-6 rounded-xl shadow-md">
+            <div class="flex items-center mb-4">
+                <img src="https://cdn-icons-png.flaticon.com/512/3774/3774299.png" class="w-6 h-6 mr-2" alt="Blockchain">
+                <h2 class="text-xl font-semibold text-gray-700">Blockchain</h2>
+            </div>
+            <button onclick="viewBlockchain()" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded">View Blockchain</button>
+            <pre id="blockchainData" class="bg-gray-100 mt-4 p-4 rounded text-sm overflow-x-auto"></pre>
+        </div>
+    </div>
+
+    <script>
+        const ws = new WebSocket('ws://localhost:6001');
+
+        ws.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            if (data.type === 'NEW_BLOCK') {
+                viewBlockchain();
+                checkBalance();
+            }
+        };
+
+        if (!localStorage.getItem('authToken')) {
+            window.location.href = '/login.html';
+        }
+
+        function getAuthHeader() {
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            };
+        }
+
+        async function checkBalance() {
+            try {
+                const token = localStorage.getItem('authToken');
+                if (!token) throw new Error('Authentication token is missing. Please log in again.');
+
+                let tokenData;
+                try {
+                    tokenData = JSON.parse(atob(token.split('.')[1]));
+                } catch {
+                    throw new Error('Invalid authentication token. Please log in again.');
+                }
+
+                const username = tokenData.username;
+                if (!username) throw new Error('Invalid token data. Username is missing.');
+
+                const response = await fetch(`/balance/${username}`, { headers: getAuthHeader() });
+                const data = await response.json();
+
+                document.getElementById('balanceResult').textContent =
+                    response.ok ? `Balance: ${data.balance} coins` : (data.error || 'Error checking balance');
+            } catch (err) {
+                document.getElementById('balanceResult').textContent = err.message || 'Error checking balance';
+            }
+        }
+
+        async function sendTransaction() {
+            try {
+                const toUser = document.getElementById('toUser').value;
+                const amount = Number(document.getElementById('amount').value);
+
+                const response = await fetch('/transaction', {
+                    method: 'POST',
+                    headers: getAuthHeader(),
+                    body: JSON.stringify({ to: toUser, amount })
+                });
+                const data = await response.json();
+
+                const result = document.getElementById('transactionResult');
+                result.className = response.ok ? 'text-green-600 mt-2' : 'text-red-600 mt-2';
+                result.textContent = response.ok ? `${data.message}. New balance: ${data.newBalance}` : (data.error || 'Transaction failed');
+
+                if (response.ok) {
+                    document.getElementById('toUser').value = '';
+                    document.getElementById('amount').value = '';
+                    viewPendingTransactions();
+                }
+            } catch {
+                const result = document.getElementById('transactionResult');
+                result.className = 'text-red-600 mt-2';
+                result.textContent = 'Transaction failed';
+            }
+        }
+
+        async function viewPendingTransactions() {
+            try {
+                const response = await fetch('/pending-transactions', { headers: getAuthHeader() });
+                const data = await response.json();
+                document.getElementById('pendingTransactions').textContent = JSON.stringify(data.transactions, null, 2);
+            } catch {
+                document.getElementById('pendingTransactions').textContent = 'Error loading pending transactions';
+            }
+        }
+
+        async function mineBlock() {
+            try {
+                const response = await fetch('/mine', { method: 'POST', headers: getAuthHeader() });
+                const data = await response.json();
+                document.getElementById('miningResult').textContent = data.message;
+                await checkBalance();
+                await viewPendingTransactions();
+                await viewBlockchain();
+            } catch {
+                document.getElementById('miningResult').textContent = 'Mining failed';
+            }
+        }
+
+        async function viewBlockchain() {
+            try {
+                const response = await fetch('/blockchain', { headers: getAuthHeader() });
+                const data = await response.json();
+                document.getElementById('blockchainData').textContent = JSON.stringify(data.chain, null, 2);
+            } catch {
+                document.getElementById('blockchainData').textContent = 'Error loading blockchain';
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('authToken');
+            window.location.href = '/login.html';
+        }
+    </script>
+</body>
+</html>

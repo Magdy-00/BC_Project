@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login - Crypto App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen font-sans">
+  <div class="bg-white p-8 rounded-2xl shadow-xl text-center w-full max-w-md relative">
+    <!-- Decorative Image -->
+    <img src="https://img.icons8.com/ios-filled/100/000000/bitcoin--v1.png" alt="Crypto Icon" class="w-20 h-20 mx-auto mb-4">
+
+    <h2 class="text-2xl font-bold text-gray-800 mb-6">Login to Cryptocurrency App</h2>
+
+    <div class="mb-6">
+      <label for="configFile" class="block cursor-pointer border-2 border-dashed border-gray-300 p-4 rounded-lg hover:bg-gray-50 transition duration-300">
+        <input type="file" id="configFile" accept=".json" class="hidden" onchange="handleFileSelect(event)">
+        <span class="text-gray-600">Choose Config File</span>
+      </label>
+      <div id="fileName" class="text-green-600 mt-2 text-sm"></div>
+    </div>
+
+    <button id="loginBtn" onclick="login()" disabled class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed">Login</button>
+
+    <div id="error" class="text-red-500 mt-4 text-sm"></div>
+  </div>
+
+  <script>
+    let selectedFile = null;
+
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (file) {
+        selectedFile = file;
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('loginBtn').disabled = false;
+      }
+    }
+
+    async function login() {
+      if (!selectedFile) {
+        document.getElementById('error').textContent = 'Please select a config file';
+        return;
+      }
+
+      try {
+        const fileContent = await selectedFile.text();
+        const config = JSON.parse(fileContent);
+
+        if (!config.username || !config.apiKey) {
+          throw new Error('Invalid config file format');
+        }
+
+        const response = await fetch('/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            username: config.username,
+            apiKey: config.apiKey
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          localStorage.setItem('authToken', data.token);
+          window.location.href = '/index.html';
+        } else {
+          document.getElementById('error').textContent = data.error;
+        }
+      } catch (err) {
+        document.getElementById('error').textContent =
+          err.message === 'Invalid config file format'
+            ? 'Invalid config file format. File must contain username and apiKey.'
+            : 'Login failed';
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+{
+  "users": [
+    {
+      "username": "magdy",
+      "apiKey": "12345-magdy-key",
+      "balance": 1260
+    },
+    {
+      "username": "amr",
+      "apiKey": "54321-amr-key",
+      "balance": 1330
+    },
+    {
+      "username": "mahmoud",
+      "apiKey": "54321-mahmoud-key",
+      "balance": 840
+    },
+    {
+      "username": "yousry",
+      "apiKey": "54321-yousry-key",
+      "balance": 1860
+    },
+    {
+      "username": "manar",
+      "apiKey": "54321-manar-key",
+      "balance": 1880
+    },
+    {
+      "username": "yara",
+      "apiKey": "54321-yara-key",
+      "balance": 1030
+    }
+  ]
+}
